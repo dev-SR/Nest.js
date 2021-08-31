@@ -1,5 +1,6 @@
 # Working With Multiple Module
 
+```bash
 nest g mo computer
 nest g mo cpu
 nest g mo disk
@@ -12,3 +13,7 @@ nest g co computer
 nest g co cpu
 nest g co disk
 nest g co power
+```
+
+Map:
+![Map](mod.jpg)

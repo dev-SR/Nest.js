@@ -25,7 +25,7 @@ import { CommonModule } from './common/common.module';
     }),
     UsersModule,
     AuthModule,
-    CommonModule,
+    // CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

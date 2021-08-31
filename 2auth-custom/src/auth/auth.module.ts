@@ -6,7 +6,13 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 @Module({
-  imports: [UsersModule, CommonModule],
+  imports: [
+    UsersModule,
+    JwtModule.register({
+      secret: 'abcbcjdskss',
+      signOptions: { expiresIn: '15d' },
+    }),
+  ],
   controllers: [AuthController],
   providers: [AuthService],
   exports: [AuthModule],
