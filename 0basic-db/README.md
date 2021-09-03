@@ -14,7 +14,7 @@
   - [Relations](#relations)
     - [One-to-many / Many-to-one](#one-to-many--many-to-one)
     - [Many to Many](#many-to-many)
-    - [Get Meta Datas](#get-meta-datas)
+    - [Get Meta Data](#get-meta-data)
   - [CRUD](#crud)
     - [CREATE [single]](#create-single)
     - [CREATE [One to Many]](#create-one-to-many)
@@ -113,6 +113,7 @@ export class Photo {
 +-------------+--------------+----------------------------+
 ```
 
+![im1](img/onetomany.jpg)
 ### Many to Many
 
 ```javascript
@@ -171,8 +172,10 @@ class Category {
 }
 ```
 
-### Get Meta Datas
+![im1](img/manytomany.jpg)
 
+
+### Get Meta Data
 
 ```javascript
 const columns = getConnection()
