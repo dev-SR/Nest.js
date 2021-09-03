@@ -20,5 +20,8 @@ export class Photo {
    *
    * *onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
    * *should behave when referenced object is deleted
+   *
+   * ?For cascading to work in OnetoMany, Photo entity must have "onDelete/onUpdate"
+   * property  which is set to "NO ACTION" by default
    */
 }

@@ -20,8 +20,11 @@ export class User {
    * !the one-to-many relationship is captured in the `userId` field in the Photo
    * !table.
    *
-   * cascade: boolean | ("insert" | "update")[] - If set to true, the related object
+   * *cascade: boolean | ("insert" | "update")[] - If set to true, the related object
    * will be inserted and updated in the database. You can also specify an array of
    * cascade options.
+   *
+   * ?For cascading to work in OnetoMany, Photo entity must have "onDelete/onUpdate"
+   * property  which is set to "NO ACTION" by default
    */
 }

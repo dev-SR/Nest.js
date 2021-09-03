@@ -13,6 +13,7 @@
 - [TypeORM](#typeorm)
   - [Relations](#relations)
     - [One-to-many / Many-to-one](#one-to-many--many-to-one)
+      - [Get Meta Datas](#get-meta-datas)
   - [CRUD](#crud)
     - [CREATE [single]](#create-single)
     - [CREATE [relations]](#create-relations)
@@ -57,11 +58,15 @@ export class User {
    * !the one-to-many relationship is captured in the `userId` field in the Photo
    * !table.
    *
-   * *cascade: boolean | ("insert" | "update")[] -
-   * If set to true, the related object will be inserted and updated in the database.
-   * You can also specify an array of cascade options.
+   * *cascade: boolean | ("insert" | "update")[] - If set to true, the related object
+   * will be inserted and updated in the database. You can also specify an array of
+   * cascade options.
+   *
+   * ?For cascading to work in OnetoMany, Photo entity must have "onDelete/onUpdate"
+   * property  which is set to "NO ACTION" by default
    */
 }
+
 @Entity()
 export class Photo {
   @PrimaryGeneratedColumn()
@@ -70,19 +75,23 @@ export class Photo {
   @Column()
   url: string;
 
-  @ManyToOne(() => User, (user) => user.photos, {
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
+  @ManyToOne( () => User, ( user ) => user.photos, {
+    onDelete: "CASCADE",
+    onUpdate:"CASCADE"
   })
   user: User;
   /**
    * !NOTE: as Photo is the many side ...
    * !typeorm will generate a foreign_key `userId`  referencing the user id.
    *
-   * onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
-   * should behave when referenced object is deleted
+   * *onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
+   * *should behave when referenced object is deleted
+   *
+   * ?For cascading to work in OnetoMany, Photo entity must have "onDelete/onUpdate"
+   * property  which is set to "NO ACTION" by default
    */
 }
+
 ```
 
 ```bash
@@ -101,6 +110,27 @@ export class Photo {
 | name        | varchar(255) |                            |
 +-------------+--------------+----------------------------+
 ```
+
+#### Get Meta Datas
+
+
+```javascript
+const columns = getConnection()
+      .getMetadata(Photo)
+      .ownColumns.map((i) => `${i.propertyName} `);
+
+    const fk = getConnection()
+      .getMetadata(Photo)
+      .foreignKeys.map(
+        (i) =>
+          `${i.entityMetadata.name}.${i.columnNames} ref: ${i.referencedEntityMetadata.name}.${i.referencedColumnNames} onDELETE:${i.onDelete} `,
+      );
+
+    return { columns, fk };
+```
+
+list all foreign keys: [https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70](https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70)
+
 
 ## CRUD
 
