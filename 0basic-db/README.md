@@ -1,0 +1,467 @@
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
+</p>
+
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
+
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+
+# TypeORM
+
+- [TypeORM](#typeorm)
+  - [Relations](#relations)
+    - [Many to One](#many-to-one)
+  - [CRUD](#crud)
+    - [READ [single entity]](#read-single-entity)
+      - [FIND ALL](#find-all)
+    - [READ [load relations]](#read-load-relations)
+      - [FIND SINGLE](#find-single)
+  - [`QueryBuilder`](#querybuilder)
+    - [How to create and use a QueryBuilder](#how-to-create-and-use-a-querybuilder)
+    - [Getting raw results: `getMany` vs `getRawMany`](#getting-raw-results-getmany-vs-getrawmany)
+    - [Joining relations](#joining-relations)
+      - [Loading Relations](#loading-relations)
+      - [Partial selection](#partial-selection)
+      - [Joining **unrelated** entity or table](#joining-unrelated-entity-or-table)
+      - [Joining and mapping functionality](#joining-and-mapping-functionality)
+      - [Working with Relations](#working-with-relations)
+
+
+## Relations
+
+### Many to One
+
+```javascript
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column()
+  password: string;
+
+  @OneToMany(() => Photo, (photo) => photo.user, { cascade: true })
+  //
+  photos: Photo[];
+  /**
+   * !Notice that the User table has no `photos` field. Again, this is expected as
+   * !the one-to-many relationship is captured in the `userId` field in the Photo
+   * !table.
+   *
+   * cascade: boolean | ("insert" | "update")[] - If set to true, the related object
+   * will be inserted and updated in the database. You can also specify an array of
+   * cascade options.
+   */
+}
+@Entity()
+export class Photo {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  url: string;
+
+  @ManyToOne(() => User, (user) => user.photos, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  user: User;
+  /**
+   * !NOTE: as Photo is the many side ...
+   * !typeorm will generate a foreign_key `userId`  referencing the user id.
+   *
+   * onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
+   * should behave when referenced object is deleted
+   */
+}
+```
+
+## CRUD
+
+### READ [single entity]
+
+#### FIND ALL
+
+> SELECT.*
+
+```javascript
+await this.userRepository.find();
+await this.userRepository.createQueryBuilder('u').getMany();
+await this.userRepository.createQueryBuilder('u').getRawMany();
+```
+
+```sql
+SELECT "u"."id" AS "u_id", "u"."email" AS "u_email", "u"."password" AS "u_password" FROM "user" "u"
+```
+
+For `getRawMany vs getMany`, Click [here](#getting-raw-results-getmany-vs-getrawmany)
+
+
+> `SELECT columns`
+
+```javascript
+await this.userRepository
+      .createQueryBuilder('u')
+      .select('u.email', 'Email')
+      .addSelect('u.id', "ID")
+      .getRawMany();
+```
+
+```json
+[
+    {
+        "ID": 1,
+        "Email": "soikat@gmail.com"
+    },
+    {
+        "ID": 2,
+        "Email": "test@gmail.com"
+    },
+    //..
+]
+```
+
+### READ [load relations]
+
+
+```javascript
+await this.userRepository.find({relations: ['photos']});
+//Sub-relations can also be loaded i.e. videos.video_attributes
+await this.userRepository.find({relations: ['photos'], select: ['email'],});
+```
+
+```sql
+SELECT  "User"."*"
+        "User__photos"."*"
+FROM "user" "User"
+LEFT JOIN "photo" "User__photos" ON "User__photos"."userId"="User"."id"
+```
+
+```json
+[
+    {
+        "id": 2,
+        "email": "test@gmail.com",
+        "password": "123",
+        "photos": [
+            {
+                "id": 1,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            },
+            {
+                "id": 5,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            }
+        ]
+    },
+    //...
+]
+```
+
+#### FIND SINGLE
+
+```javascript
+await this.userRepository.findOne(id, { relations: ['photos'] });
+```
+
+```json
+{
+        "id": 2,
+        "email": "test@gmail.com",
+        "password": "123",
+        "photos": [
+            {
+                "id": 1,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            },
+            {
+                "id": 5,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            }
+        ]
+}
+```
+
+More find options: [https://orkhan.gitbook.io/typeorm/docs/find-options](https://orkhan.gitbook.io/typeorm/docs/find-options)
+
+
+
+## `QueryBuilder`
+
+[https://github.com/typeorm/typeorm/blob/master/docs/select-query-builder.md#what-is-querybuilder](https://github.com/typeorm/typeorm/blob/master/docs/select-query-builder.md#what-is-querybuilder)
+
+### How to create and use a QueryBuilder
+
+There are several ways how you can create a Query Builder:
+
+- Using repository:
+
+```javascript
+import {getRepository} from "typeorm";
+
+const user = await getRepository(User)
+    .createQueryBuilder("user")
+    .where("user.id = :id", { id: 1 })
+    .getOne();
+```
+
+### Getting raw results: `getMany` vs `getRawMany`
+
+There are two types of results you can get using select query builder: `entities` and `raw` results. Most of the time, you need to select real entities from your database, for example, `Users`. For this purpose, you use `getOne` and `getMany`.
+
+```javascript
+await this.userRepository
+      .createQueryBuilder('u')
+      .getMany();
+```
+
+```json
+[
+    {
+        "id": 1,
+        "email": "soikat@gmail.com",
+        "password": "123",
+    },
+    //...
+]
+```
+
+Output matches Schema definition.
+
+`However, sometimes you need to select specific data, like the sum of all user photos. Such data is not a entity, it's called raw data`. To get raw data, you use `getRawOne` and `getRawMany`. Examples:
+
+```javascript
+await this.userRepository
+      .createQueryBuilder('u')
+      .select('email')
+      .getMany();
+```
+
+```json
+[]
+```
+
+```javascript
+await this.userRepository
+      .createQueryBuilder('u')
+      .select('email')
+      .getRawMany();
+```
+
+```json
+[
+  { "email": "soikat@gmail.com", }, { "email": "soikat@gmail.com", },//...
+]
+```
+
+### Joining relations
+
+Let's say you have the following entities:
+
+```bash
++-------------+--------------+----------------------------+
+|                         photo                           |
++-------------+--------------+----------------------------+
+| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
+| url         | varchar(255) |                            |
+| userId      | int(11)      | FOREIGN KEY                |
++-------------+--------------+----------------------------+
+
++-------------+--------------+----------------------------+
+|                          user                           |
++-------------+--------------+----------------------------+
+| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
+| name        | varchar(255) |                            |
++-------------+--------------+----------------------------+
+```
+
+```javascript
+import {Entity, PrimaryGeneratedColumn, Column, OneToMany} from "typeorm";
+@Entity()
+export class User {
+
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    name: string;
+
+    @OneToMany(type => Photo, photo => photo.user)
+    photos: Photo[];
+}
+
+@Entity()
+export class Photo {
+
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    url: string;
+
+    @ManyToOne(type => User, user => user.photos)
+    user: User;
+}
+```
+
+#### Loading Relations
+
+> `leftJoinAndSelect(property: string, alias: string, condition?: string, parameters?: ObjectLiteral)`
+
+```javascript
+const q = getRepository(User)
+        //Or, this.userRepository
+        .createQueryBuilder('u') //alias
+        .leftJoinAndSelect('u.photos', 'p');
+        // load `photo` relation for `photos` property of user `u`, p is alias
+    return await q.getMany();
+```
+
+```sql
+SELECT  "u"."*", "p"."*"
+FROM "user" "u"
+LEFT JOIN "photo" "p" ON "p"."userId"="u"."id"
+```
+
+```json
+[
+    {
+        "id": 2,
+        "email": "test@gmail.com",
+        "password": "123",
+        "photos": [
+            {
+                "id": 1,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            },
+            {
+                "id": 5,
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            }
+        ]
+    },
+    //...
+]
+```
+
+As you can see leftJoinAndSelect automatically loaded all of User's photos. **The first argument is the `relation` you want to load** and the **second argument is an `alias` you assign to this relation's table**.
+
+You can use this alias anywhere in query builder. For example, let's take all Timber's photos which aren't removed.
+
+
+```javascript
+const user = await createQueryBuilder("u")
+    .leftJoinAndSelect("u.photos", "photo")
+    .where("u.name = :name", { name: "Timber" })
+    .andWhere("photo.isRemoved = :isRemoved", { isRemoved: false })
+    .getOne();
+```
+
+```sql
+SELECT u.*, p.* FROM users u
+    LEFT JOIN photos p ON p.userId = u.id
+    WHERE u.name = 'Timber' AND p.isRemoved = FALSE
+```
+
+You can also add conditions to the join expression instead of using "where":
+
+```javascript
+const user = await createQueryBuilder("user")
+    .leftJoinAndSelect("user.photos", "photo", "photo.isRemoved = :isRemoved", { isRemoved: false })
+    .where("user.name = :name", { name: "Timber" })
+    .getOne();
+```
+
+```sql
+SELECT u.*, p.* FROM users u
+    LEFT JOIN photos p ON p.userId = u.id AND p.isRemoved = FALSE
+    WHERE u.name = 'Timber'
+```
+
+#### Partial selection
+
+If you want to select only some entity properties, you can use the following syntax:
+
+
+```javascript
+await this.userRepository // Or, getRepository( User )
+      .createQueryBuilder('u') //alias
+      .leftJoinAndSelect('u.photos', 'p') //(property,alias,condition?)
+      .select(['u.email', 'p.url']).getMany();
+```
+
+> `select` must be after leftJoinAndSelect methods:
+
+```json
+[
+    {
+        "email": "test@gmail.com",
+        "photos": [
+            {
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            },
+            {
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            }
+        ]
+    },
+    //...
+]
+```
+
+```javascript
+return await this.userRepository
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.photos', 'p')
+      .select(['u.email', 'p.url'])
+      .where('u.id = :id', { id })
+      // .where('u.id IN (:...id)', { id: [id] })
+      .getOne();
+```
+
+```sql
+SELECT 'u.email', 'p.url'
+FROM "user" "u"
+LEFT JOIN "photo" "p" ON "p"."userId"="u"."id" WHERE "u"."id" IN ($1)
+```
+
+```json
+{
+        "email": "test@gmail.com",
+        "photos": [
+            {
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            },
+            {
+                "url": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+            }
+        ]
+}
+```
+
+
+#### Joining **unrelated** entity or table
+
+You can join not only relations, but also other unrelated entities or tables. Examples:
+
+
+```javascript
+const user = await createQueryBuilder("user")
+    .leftJoinAndSelect(Photo, "photo", "photo.userId = user.id")
+    .getMany();
+
+const user = await createQueryBuilder("user")
+    .leftJoinAndSelect("photos", "photo", "photo.userId = user.id")
+    .getMany();
+```
+
+
+#### Joining and mapping functionality
+
+#### Working with Relations
