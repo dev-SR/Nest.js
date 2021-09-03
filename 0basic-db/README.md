@@ -12,11 +12,14 @@
 
 - [TypeORM](#typeorm)
   - [Relations](#relations)
-    - [Many to One](#many-to-one)
+    - [One-to-many / Many-to-one](#one-to-many--many-to-one)
   - [CRUD](#crud)
+    - [CREATE [single]](#create-single)
+    - [CREATE [relations]](#create-relations)
     - [READ [single entity]](#read-single-entity)
       - [FIND ALL](#find-all)
     - [READ [load relations]](#read-load-relations)
+      - [FIND ALL](#find-all-1)
       - [FIND SINGLE](#find-single)
   - [`QueryBuilder`](#querybuilder)
     - [How to create and use a QueryBuilder](#how-to-create-and-use-a-querybuilder)
@@ -31,7 +34,7 @@
 
 ## Relations
 
-### Many to One
+### One-to-many / Many-to-one
 
 ```javascript
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
@@ -54,9 +57,9 @@ export class User {
    * !the one-to-many relationship is captured in the `userId` field in the Photo
    * !table.
    *
-   * cascade: boolean | ("insert" | "update")[] - If set to true, the related object
-   * will be inserted and updated in the database. You can also specify an array of
-   * cascade options.
+   * *cascade: boolean | ("insert" | "update")[] -
+   * If set to true, the related object will be inserted and updated in the database.
+   * You can also specify an array of cascade options.
    */
 }
 @Entity()
@@ -82,9 +85,56 @@ export class Photo {
 }
 ```
 
+```bash
++-------------+--------------+----------------------------+
+|                         photo                           |
++-------------+--------------+----------------------------+
+| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
+| url         | varchar(255) |                            |
+| userId      | int(11)      | FOREIGN KEY                |
++-------------+--------------+----------------------------+
+
++-------------+--------------+----------------------------+
+|                          user                           |
++-------------+--------------+----------------------------+
+| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
+| name        | varchar(255) |                            |
++-------------+--------------+----------------------------+
+```
+
 ## CRUD
 
+### CREATE [single]
+
+```javascript
+return this.userRepository.save(data);
+```
+
+
+### CREATE [relations]
+
+
+```javascript
+// const user = new User();
+// user.name = "Leo";
+// await connection.manager.save(user);
+
+const user = User.findOne(condition)
+const photo1 = new Photo();
+photo1.url = "me.jpg";
+photo1.user = user;
+await connection.manager.save(photo1);
+
+const photo2 = new Photo();
+photo2.url = "me-and-bears.jpg";
+photo2.user = user;
+await connection.manager.save(photo2);
+```
+
+
 ### READ [single entity]
+
+Details find options: [https://orkhan.gitbook.io/typeorm/docs/find-options](https://orkhan.gitbook.io/typeorm/docs/find-options)
 
 #### FIND ALL
 
@@ -129,11 +179,16 @@ await this.userRepository
 
 ### READ [load relations]
 
+#### FIND ALL
 
 ```javascript
 await this.userRepository.find({relations: ['photos']});
 //Sub-relations can also be loaded i.e. videos.video_attributes
 await this.userRepository.find({relations: ['photos'], select: ['email'],});
+
+// or from inverse side
+await this.photoRepository.find({ relations: ['user'] });
+
 ```
 
 ```sql
@@ -166,6 +221,8 @@ LEFT JOIN "photo" "User__photos" ON "User__photos"."userId"="User"."id"
 
 #### FIND SINGLE
 
+`findOne`
+
 ```javascript
 await this.userRepository.findOne(id, { relations: ['photos'] });
 ```
@@ -188,9 +245,30 @@ await this.userRepository.findOne(id, { relations: ['photos'] });
 }
 ```
 
-More find options: [https://orkhan.gitbook.io/typeorm/docs/find-options](https://orkhan.gitbook.io/typeorm/docs/find-options)
+`findOneOrFail`
 
+```javascript
+    try {
+      const p = await this.userRepository.findOneOrFail(id, {
+        relations: ['photos'],
+      });
+      return p;
+    } catch (e) {
+      return new NotFoundException(`User ${id} Not Found`);
+    }
+```
 
+Equivalent to
+
+```javascript
+    const u1 = await this.userRepository.findOne(id, {
+      relations: ['photos'],
+      select: ['email'],
+    });
+
+    if (!u1) throw new NotFoundException(`User ${id} Not Found`);
+    return u1;
+```
 
 ## `QueryBuilder`
 
@@ -262,65 +340,17 @@ await this.userRepository
 
 ### Joining relations
 
-Let's say you have the following entities:
-
-```bash
-+-------------+--------------+----------------------------+
-|                         photo                           |
-+-------------+--------------+----------------------------+
-| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
-| url         | varchar(255) |                            |
-| userId      | int(11)      | FOREIGN KEY                |
-+-------------+--------------+----------------------------+
-
-+-------------+--------------+----------------------------+
-|                          user                           |
-+-------------+--------------+----------------------------+
-| id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
-| name        | varchar(255) |                            |
-+-------------+--------------+----------------------------+
-```
-
-```javascript
-import {Entity, PrimaryGeneratedColumn, Column, OneToMany} from "typeorm";
-@Entity()
-export class User {
-
-    @PrimaryGeneratedColumn()
-    id: number;
-
-    @Column()
-    name: string;
-
-    @OneToMany(type => Photo, photo => photo.user)
-    photos: Photo[];
-}
-
-@Entity()
-export class Photo {
-
-    @PrimaryGeneratedColumn()
-    id: number;
-
-    @Column()
-    url: string;
-
-    @ManyToOne(type => User, user => user.photos)
-    user: User;
-}
-```
-
 #### Loading Relations
 
 > `leftJoinAndSelect(property: string, alias: string, condition?: string, parameters?: ObjectLiteral)`
 
 ```javascript
-const q = getRepository(User)
+const u = getRepository(User)
         //Or, this.userRepository
         .createQueryBuilder('u') //alias
         .leftJoinAndSelect('u.photos', 'p');
         // load `photo` relation for `photos` property of user `u`, p is alias
-    return await q.getMany();
+return await u.getMany();
 ```
 
 ```sql
@@ -348,6 +378,17 @@ LEFT JOIN "photo" "p" ON "p"."userId"="u"."id"
     },
     //...
 ]
+```
+
+Or, from inverse side
+
+```javascript
+
+const photos =
+    .getRepository(Photo)
+    .createQueryBuilder("photo")
+    .leftJoinAndSelect("photo.user", "user")
+    .getMany();
 ```
 
 As you can see leftJoinAndSelect automatically loaded all of User's photos. **The first argument is the `relation` you want to load** and the **second argument is an `alias` you assign to this relation's table**.

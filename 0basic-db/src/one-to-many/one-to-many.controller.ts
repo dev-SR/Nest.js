@@ -28,15 +28,12 @@ export class OneToManyController {
   async createPhoto(@Body() body: any): Promise<Photo> {
     // const user = new User();
     //   user.email = 'soikat@gmail.com';
-    const user = await this.services.findOneUser({ email: body.email });
-    if (!user) {
-      throw new NotFoundException();
-    }
+
     return await this.services.createPhoto(
       {
         url: body.url,
       } as Photo,
-      user,
+      body.email,
     );
   }
 
@@ -53,7 +50,7 @@ export class OneToManyController {
   @Get('/one-user-with-photos')
   async oneUserWithPhotos(
     @Query('id', ParseIntPipe) id: number,
-  ): Promise<User> {
+  ): Promise<User | NotFoundException> {
     return await this.services.getOneUserWithPhotos(id);
   }
 

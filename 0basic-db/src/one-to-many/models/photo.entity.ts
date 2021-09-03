@@ -18,7 +18,7 @@ export class Photo {
    * !NOTE: as Photo is the many side ...
    * !typeorm will generate a foreign_key `userId`  referencing the user id.
    *
-   * onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
-   * should behave when referenced object is deleted
+   * *onDelete: "RESTRICT"|"CASCADE"|"SET NULL" - specifies how foreign key
+   * *should behave when referenced object is deleted
    */
 }

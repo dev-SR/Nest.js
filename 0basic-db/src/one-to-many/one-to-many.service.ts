@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DeleteResult,
@@ -17,6 +17,8 @@ export class OneToManyService {
     @InjectRepository(Photo)
     private readonly photoRepository: Repository<Photo>,
   ) {}
+
+  private readonly logger = new Logger(OneToManyService.name);
 
   async createUser(data): Promise<User> {
     return this.userRepository.save(data);
@@ -55,7 +57,6 @@ export class OneToManyService {
       .leftJoinAndSelect('u.photos', 'p') //(relation,alias,condition?)
       .select(['u.email', 'p.url']);
     return await q.getMany();
-
     /*
     SELECT 'u.email', 'p.url'
     FROM "user" "u"
@@ -63,26 +64,54 @@ export class OneToManyService {
     */
   }
 
-  async getOneUserWithPhotos(id: number): Promise<User> {
-    // return await this.userRepository.findOne(id, {
-    //   relations: ['photos'],
-    //   select: ['email'],
-    // });
-    return await this.userRepository
+  async getOneUserWithPhotos(id: number): Promise<User | NotFoundException> {
+    /*     const u1 = await this.userRepository.findOne(id, {
+      relations: ['photos'],
+      select: ['email'],
+    });
+    if (!u1) throw new NotFoundException(`User ${id} Not Found`);
+
+    return u1; */
+
+    /*     try {
+      const p = await this.userRepository.findOneOrFail(id, {
+        relations: ['photos'],
+      });
+      return p;
+    } catch (e) {
+      return new NotFoundException(`User ${id} Not Found`);
+    } */
+
+    const u = await this.userRepository
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.photos', 'p')
       .select(['u.email', 'p.url'])
       .where('u.id = :id', { id })
       // .where('u.id IN (:...id)', { id: [id] })
       .getOne();
+    if (!u) throw new NotFoundException(`User ${id} Not Found`);
+
+    return u;
+
     /*
-    (mapToProperty: string, subQueryFactory: (qb: SelectQueryBuilder<any>) => SelectQueryBuilder<any>, alias: string, condition?: string, parameters?: ObjectLiteral)
-
-
     SELECT ..
-      FROM "user" "u"
-      LEFT JOIN "photo" "p" ON "p"."userId"="u"."id" WHERE "u"."id" IN ($1)
-      */
+    FROM "user" "u"
+    LEFT JOIN "photo" "p" ON "p"."userId"="u"."id" WHERE "u"."id" IN ($1)
+    */
+  }
+
+  // !PHOTO
+  async createPhoto(data: Photo, email: string): Promise<any> {
+    // const newPhoto = await this.photoRepository.create({ ...data, user: user });
+    const user = await this.findOneUser({ email });
+    if (!user) {
+      throw new NotFoundException();
+    }
+    const newPhoto = new Photo();
+    newPhoto.url = data.url;
+    newPhoto.user = user; //!
+
+    return await this.photoRepository.save(newPhoto);
   }
 
   async getAllPhotoOnly(): Promise<Photo[]> {
@@ -98,29 +127,22 @@ export class OneToManyService {
   }
 
   async getOnePhotoWithTheirUser(id: number): Promise<Photo> {
-    return await this.photoRepository.findOne(id, { relations: ['user'] });
+    // return await this.photoRepository.findOne( id, { relations: ['user'] } );
+    try {
+      const p = await this.photoRepository.findOneOrFail(id, {
+        relations: ['user'],
+      });
+      return p;
+    } catch (e) {
+      return e;
+    }
     /*
 
-    SELECT  "Photo"."id" AS "Photo_id",
-            "Photo"."url" AS "Photo_url",
-            "Photo"."userId" AS "Photo_userId",
-            "Photo__user"."id" AS "Photo__user_id",
-            "Photo__user"."email" AS "Photo__user_email",
-            "Photo__user"."password" AS "Photo__user_password"
-    FROM "photo" "Photo"
-    LEFT JOIN "user" "Photo__user" ON "Photo__user"."id"="Photo"."userId"
+    SELECT
+    FROM "photo" "p"
+    LEFT JOIN "user" "u" ON "u"."id"="p"."userId"
     WHERE "Photo"."id" IN (1)
     */
-  }
-
-  async createPhoto(data: Photo, user: User): Promise<any> {
-    // const newPhoto = await this.photoRepository.create({ ...data, user: user });
-
-    const newPhoto = new Photo();
-    newPhoto.url = data.url;
-    newPhoto.user = user;
-
-    return await this.photoRepository.save(newPhoto);
   }
 
   async updatePhoto(data: Photo, id: number): Promise<any> {
