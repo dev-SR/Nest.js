@@ -39,7 +39,7 @@
 
 ### One-to-many / Many-to-one
 
-```javascript
+```typescript
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 @Entity()
 export class User {
@@ -116,7 +116,7 @@ export class Photo {
 ![im1](img/onetomany.jpg)
 ### Many to Many
 
-```javascript
+```typescript
 @Entity()
 class Post {
   @PrimaryGeneratedColumn()
@@ -177,7 +177,7 @@ class Category {
 
 ### Get Meta Data
 
-```javascript
+```typescript
 const columns = getConnection()
       .getMetadata(Photo)
       .ownColumns.map((i) => `${i.propertyName} `);
@@ -199,14 +199,14 @@ list all foreign keys SQL: [https://gist.github.com/dev-SR/492ef45d1580af51e97a0
 
 ### CREATE [single]
 
-```javascript
+```typescript
 return this.userRepository.save(data);
 ```
 
 
 ### CREATE [One to Many]
 
-```javascript
+```typescript
 const user = new User();
 user.name = "Leo";
 await connection.manager.save(user);
@@ -217,7 +217,7 @@ photo.user = user;
 await connection.manager.save(photo);
 ```
 
-```javascript
+```typescript
 const user = User.findOne(condition)
 const photo = new Photo();
 photo.url = "me.jpg";
@@ -229,7 +229,7 @@ await connection.manager.save(photo);
 
 > Without Many to Many
 
-```javascript
+```typescript
 const post = new Post();
 post.title = "dogs";
 post.content = "who let the dogs out?";
@@ -238,36 +238,34 @@ await connection.manager.save(question);
 
 > With Many to Many
 
-```javascript
-// Create With New Category
-const category1 = new Category();
-category1.name = "animals";
-await connection.manager.save(category1);
+```typescript
+  // Create With New Category
+  const category1 = new Category();
+  category1.name = "animals";
+  await connection.manager.save(category1);
 
-const category2 = new Category();
-category2.name = "zoo";
-await connection.manager.save(category2);
+  const category2 = new Category();
+  category2.name = "zoo";
+  await connection.manager.save(category2);
 
-const post = new Post();
-post.title = "dogs";
-post.content = "who let the dogs out?";
-post.categories = [category1, category2];
-await connection.manager.save(question);
+  const post = new Post();
+  post.title = "dogs";
+  post.content = "who let the dogs out?";
+  post.categories = [category1, category2];
+  await connection.manager.save(question);
 ```
 
-```javascript
-    // Create With New Category
-    const user = await this.userRepository.findOne({ id: user_id });
+```typescript
+  const user = await this.userRepository.findOne({ id: user_id });
+  const post = new Post();
+  post.title = post.title;
+  post.content = post.content;
+  post.author = user;
 
-    const post = new Post();
-    post.title = post.title;
-    post.content = post.content;
-    post.author = user;
-
-    // !Save many to many Relation: Create Post With Category 1,2
-    const categories = await this.categoriesRepository.findByIds([1,2]);
-    post.categories = categories;
-    await this.postRepository.save(newPost);
+  // !Save many to many Relation: Create Post With Existing Category 1,2
+  const categories = await this.categoriesRepository.findByIds([1,2]);
+  post.categories = categories;
+  await this.postRepository.save(newPost);
 ```
 
 
@@ -279,7 +277,7 @@ Details find options: [https://orkhan.gitbook.io/typeorm/docs/find-options](http
 
 > SELECT.*
 
-```javascript
+```typescript
 await this.userRepository.find();
 await this.userRepository.createQueryBuilder('u').getMany();
 await this.userRepository.createQueryBuilder('u').getRawMany();
@@ -294,7 +292,7 @@ For `getRawMany vs getMany`, Click [here](#getting-raw-results-getmany-vs-getraw
 
 > `SELECT columns`
 
-```javascript
+```typescript
 await this.userRepository
       .createQueryBuilder('u')
       .select('u.email', 'Email')
@@ -320,7 +318,7 @@ await this.userRepository
 
 #### FIND ALL
 
-```javascript
+```typescript
 await this.userRepository.find({relations: ['photos']});
 //Sub-relations can also be loaded i.e. videos.video_attributes
 await this.userRepository.find({relations: ['photos'], select: ['email'],});
@@ -362,7 +360,7 @@ LEFT JOIN "photo" "User__photos" ON "User__photos"."userId"="User"."id"
 
 `findOne`
 
-```javascript
+```typescript
 await this.userRepository.findOne(id, { relations: ['photos'] });
 ```
 
@@ -386,7 +384,7 @@ await this.userRepository.findOne(id, { relations: ['photos'] });
 
 `findOneOrFail`
 
-```javascript
+```typescript
     try {
       const p = await this.userRepository.findOneOrFail(id, {
         relations: ['photos'],
@@ -399,7 +397,7 @@ await this.userRepository.findOne(id, { relations: ['photos'] });
 
 Equivalent to
 
-```javascript
+```typescript
     const u1 = await this.userRepository.findOne(id, {
       relations: ['photos'],
       select: ['email'],
@@ -419,7 +417,7 @@ There are several ways how you can create a Query Builder:
 
 - Using repository:
 
-```javascript
+```typescript
 import {getRepository} from "typeorm";
 
 const user = await getRepository(User)
@@ -432,7 +430,7 @@ const user = await getRepository(User)
 
 There are two types of results you can get using select query builder: `entities` and `raw` results. Most of the time, you need to select real entities from your database, for example, `Users`. For this purpose, you use `getOne` and `getMany`.
 
-```javascript
+```typescript
 await this.userRepository
       .createQueryBuilder('u')
       .getMany();
@@ -453,7 +451,7 @@ Output matches Schema definition.
 
 `However, sometimes you need to select specific data, like the sum of all user photos. Such data is not a entity, it's called raw data`. To get raw data, you use `getRawOne` and `getRawMany`. Examples:
 
-```javascript
+```typescript
 await this.userRepository
       .createQueryBuilder('u')
       .select('email')
@@ -464,7 +462,7 @@ await this.userRepository
 []
 ```
 
-```javascript
+```typescript
 await this.userRepository
       .createQueryBuilder('u')
       .select('email')
@@ -483,7 +481,7 @@ await this.userRepository
 
 > `leftJoinAndSelect(property: string, alias: string, condition?: string, parameters?: ObjectLiteral)`
 
-```javascript
+```typescript
 const u = getRepository(User)
         //Or, this.userRepository
         .createQueryBuilder('u') //alias
@@ -521,7 +519,7 @@ LEFT JOIN "photo" "p" ON "p"."userId"="u"."id"
 
 Or, from inverse side
 
-```javascript
+```typescript
 
 const photos =
     .getRepository(Photo)
@@ -535,7 +533,7 @@ As you can see leftJoinAndSelect automatically loaded all of User's photos. **Th
 You can use this alias anywhere in query builder. For example, let's take all Timber's photos which aren't removed.
 
 
-```javascript
+```typescript
 const user = await createQueryBuilder("u")
     .leftJoinAndSelect("u.photos", "photo")
     .where("u.name = :name", { name: "Timber" })
@@ -551,7 +549,7 @@ SELECT u.*, p.* FROM users u
 
 You can also add conditions to the join expression instead of using "where":
 
-```javascript
+```typescript
 const user = await createQueryBuilder("user")
     .leftJoinAndSelect("user.photos", "photo", "photo.isRemoved = :isRemoved", { isRemoved: false })
     .where("user.name = :name", { name: "Timber" })
@@ -569,7 +567,7 @@ SELECT u.*, p.* FROM users u
 If you want to select only some entity properties, you can use the following syntax:
 
 
-```javascript
+```typescript
 await this.userRepository // Or, getRepository( User )
       .createQueryBuilder('u') //alias
       .leftJoinAndSelect('u.photos', 'p') //(property,alias,condition?)
@@ -595,7 +593,7 @@ await this.userRepository // Or, getRepository( User )
 ]
 ```
 
-```javascript
+```typescript
 return await this.userRepository
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.photos', 'p')
@@ -631,7 +629,7 @@ LEFT JOIN "photo" "p" ON "p"."userId"="u"."id" WHERE "u"."id" IN ($1)
 You can join not only relations, but also other unrelated entities or tables. Examples:
 
 
-```javascript
+```typescript
 const user = await createQueryBuilder("user")
     .leftJoinAndSelect(Photo, "photo", "photo.userId = user.id")
     .getMany();
