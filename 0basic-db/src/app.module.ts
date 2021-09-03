@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { OneToManyModule } from './one-to-many/one-to-many.module';
+import { ManyToManyModule } from './many-to-many/many-to-many.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { OneToManyModule } from './one-to-many/one-to-many.module';
       logging: process.env.NODE_ENV == 'development' ? true : false,
     }),
     OneToManyModule,
+    ManyToManyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

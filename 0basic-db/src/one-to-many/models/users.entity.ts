@@ -1,3 +1,4 @@
+import Post from 'src/many-to-many/posts/post.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Photo } from './photo.entity';
 
@@ -27,4 +28,6 @@ export class User {
    * ?For cascading to work in OnetoMany, Photo entity must have "onDelete/onUpdate"
    * property  which is set to "NO ACTION" by default
    */
+  @OneToMany(() => Post, (post: Post) => post.author)
+  public posts: Post[];
 }

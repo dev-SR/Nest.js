@@ -13,10 +13,12 @@
 - [TypeORM](#typeorm)
   - [Relations](#relations)
     - [One-to-many / Many-to-one](#one-to-many--many-to-one)
-      - [Get Meta Datas](#get-meta-datas)
+    - [Many to Many](#many-to-many)
+    - [Get Meta Datas](#get-meta-datas)
   - [CRUD](#crud)
     - [CREATE [single]](#create-single)
-    - [CREATE [relations]](#create-relations)
+    - [CREATE [One to Many]](#create-one-to-many)
+    - [CREATE [Many to Many]](#create-many-to-many)
     - [READ [single entity]](#read-single-entity)
       - [FIND ALL](#find-all)
     - [READ [load relations]](#read-load-relations)
@@ -111,7 +113,65 @@ export class Photo {
 +-------------+--------------+----------------------------+
 ```
 
-#### Get Meta Datas
+### Many to Many
+
+```javascript
+@Entity()
+class Post {
+  @PrimaryGeneratedColumn()
+  public id: number;
+
+  @Column()
+  public title: string;
+
+  @Column()
+  public content: string;
+
+  @ManyToOne(() => User, (author: User) => author.posts, {
+    onDelete: 'CASCADE',
+  })
+  public author: User;
+
+  @ManyToMany(() => Category, (category: Category) => category.posts)
+  @JoinTable()
+  public categories: Category[];
+}
+/**
+ * @JoinTable() is required for @ManyToMany relations
+ *
+ * When we use the  @ManyToMany() and  @JoinTable() decorators, TypeORM set ups an
+ * additional table. This way, neither the Post nor Category table stores the data
+ * about the relationship.
+ *
+ * Relations can be uni-directional and bi-directional. Uni-directional relations
+ * are relations with a relation decorator only on one side. Bi-directional
+ * relations are relations with decorators on both sides of a relation.
+ *
+ * @ManyToMany(() => Category, (category: Category) => category.posts)
+ * @JoinTable()
+ * public categories: Category[];
+ *
+ * @ManyToMany(() => Post, (post: Post) => post.categories)
+ * public posts: Post[]
+ *
+*/
+@Entity()
+class Category {
+  @PrimaryGeneratedColumn()
+  public id: number;
+
+  @Column()
+  public name: string;
+
+  @ManyToMany(() => Post, (post: Post) => post.categories, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  public posts: Post[];
+}
+```
+
+### Get Meta Datas
 
 
 ```javascript
@@ -129,7 +189,7 @@ const columns = getConnection()
     return { columns, fk };
 ```
 
-list all foreign keys: [https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70](https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70)
+list all foreign keys SQL: [https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70](https://gist.github.com/dev-SR/492ef45d1580af51e97a053e948cca70)
 
 
 ## CRUD
@@ -141,24 +201,70 @@ return this.userRepository.save(data);
 ```
 
 
-### CREATE [relations]
-
+### CREATE [One to Many]
 
 ```javascript
-// const user = new User();
-// user.name = "Leo";
-// await connection.manager.save(user);
+const user = new User();
+user.name = "Leo";
+await connection.manager.save(user);
 
+const photo = new Photo();
+photo.url = "me.jpg";
+photo.user = user;
+await connection.manager.save(photo);
+```
+
+```javascript
 const user = User.findOne(condition)
-const photo1 = new Photo();
-photo1.url = "me.jpg";
-photo1.user = user;
-await connection.manager.save(photo1);
+const photo = new Photo();
+photo.url = "me.jpg";
+photo.user = user;
+await connection.manager.save(photo);
+```
 
-const photo2 = new Photo();
-photo2.url = "me-and-bears.jpg";
-photo2.user = user;
-await connection.manager.save(photo2);
+### CREATE [Many to Many]
+
+> Without Many to Many
+
+```javascript
+const post = new Post();
+post.title = "dogs";
+post.content = "who let the dogs out?";
+await connection.manager.save(question);
+```
+
+> With Many to Many
+
+```javascript
+// Create With New Category
+const category1 = new Category();
+category1.name = "animals";
+await connection.manager.save(category1);
+
+const category2 = new Category();
+category2.name = "zoo";
+await connection.manager.save(category2);
+
+const post = new Post();
+post.title = "dogs";
+post.content = "who let the dogs out?";
+post.categories = [category1, category2];
+await connection.manager.save(question);
+```
+
+```javascript
+    // Create With New Category
+    const user = await this.userRepository.findOne({ id: user_id });
+
+    const post = new Post();
+    post.title = post.title;
+    post.content = post.content;
+    post.author = user;
+
+    // !Save many to many Relation: Create Post With Category 1,2
+    const categories = await this.categoriesRepository.findByIds([1,2]);
+    post.categories = categories;
+    await this.postRepository.save(newPost);
 ```
 
 
