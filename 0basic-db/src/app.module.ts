@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { OneToManyModule } from './one-to-many/one-to-many.module';
 import { ManyToManyModule } from './many-to-many/many-to-many.module';
+import { FancyTablesModule } from './fancy-tables/fancy-tables.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ManyToManyModule } from './many-to-many/many-to-many.module';
     }),
     OneToManyModule,
     ManyToManyModule,
+    FancyTablesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
