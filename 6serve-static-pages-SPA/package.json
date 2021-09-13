@@ -7,12 +7,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "nest build",
-    "start": "nest start",
+    "build": "nest build && yarn client:build:heroku",
     "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "prestart:dev": "yarn --cwd frontend install && yarn --cwd frontend build"
+    "client": "yarn --cwd frontend dev",
+    "client:build:local": "yarn --cwd frontend install && yarn --cwd frontend build",
+    "client:build:heroku": "NPM_CONFIG_PRODUCTION=false YARN_PRODUCTION=false yarn --cwd frontend install && yarn --cwd frontend build"
   },
   "dependencies": {
     "@nestjs/common": "^8.0.0",
