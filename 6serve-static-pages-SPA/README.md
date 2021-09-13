@@ -17,6 +17,12 @@ NEST/
 │  ├──app.module.ts
 ```
 
+### 🌟 `tsconfig.json` 🌟
+
+```json
+"include": ["./src"],
+"exclude": ["frontend", "frontend/**", "frontend/**/*"]
+```
 
 ### Prepare frontend
 
