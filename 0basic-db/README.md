@@ -11,6 +11,8 @@
 # TypeORM
 
 - [TypeORM](#typeorm)
+  - [Define Models](#define-models)
+    - [TimeStamps](#timestamps)
   - [Relations](#relations)
     - [One-to-many / Many-to-one](#one-to-many--many-to-one)
     - [Many to Many](#many-to-many)
@@ -34,6 +36,24 @@
       - [Joining and mapping functionality](#joining-and-mapping-functionality)
       - [Working with Relations](#working-with-relations)
 
+## Define Models
+
+### TimeStamps
+
+```typescript
+@CreateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+  })
+  created_at: Date;
+
+  @UpdateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+    onUpdate: 'CURRENT_TIMESTAMP(6)',
+  })
+  updated_at: Date;
+```
 
 ## Relations
 
