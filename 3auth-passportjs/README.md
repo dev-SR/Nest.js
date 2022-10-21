@@ -11,8 +11,6 @@
       - [Protecting endpoints: Session Strategy](#protecting-endpoints-session-strategy)
         - [Using Guards and Sessions](#using-guards-and-sessions)
       - [Protecting endpoints: JWT Strategy](#protecting-endpoints-jwt-strategy)
-        - [JwtModule setup and Sending to the logged in user](#jwtmodule-setup-and-sending-to-the-logged-in-user)
-        - [Implementing Passport JWT to protect endpoints](#implementing-passport-jwt-to-protect-endpoints)
 
 
 ## Resources
@@ -407,198 +405,104 @@ async function bootstrap() {
 bootstrap();
 ```
 
-`auth\local\local.guard.ts`:
+We can now address our final requirement: protecting endpoints by requiring a valid JWT be present on the request. Passport can help us here too. It provides the `passport-jwt` strategy for securing RESTful endpoints with JSON Web Tokens.
+
+First,we have to create a **service** that will be responsible for validating the JWT and returning the user. We will call this service `JwtStrategy`. Create `src\auth\strategies\jwt.strategy.ts` and add the following code:
 
 ```typescript
-import { ExecutionContext, Injectable } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-
-@Injectable()
-export class LocalAuthGuard extends AuthGuard('local') {}
-
-```
-
-##### JwtModule setup and Sending to the logged in user
-
-AuthService will generate a JWT token for the user. So we need to install the `@nestjs/jwt` package.
-
-`auth\local\local.auth.service.ts`
-
-
-```typescript
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
-import { JwtService } from '@nestjs/jwt';
+import appConfig from 'src/config/app.config';
 
 @Injectable()
-export class LocalAuthService {
-  constructor(
-    private userService: UsersService,
-    private jwtService: JwtService,
-  ) {}
+export class JwtStrategy extends PassportStrategy(Strategy) {
+	constructor() {
+		super({
+			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+			ignoreExpiration: false,
+			secretOrKey: appConfig().jwtSecret
+		});
+	}
 
-  async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.userService.findOne(username);
-    if (user && user.password === pass) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...rest } = user;
-      return rest;
-    }
-    return null;
-  }
+	async validate(payload: any) {
+		// console.log(payload);
 
-  async login(user: any) {
-    const payload = { username: user.username };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
-  }
+		return { email: payload.email, sub: payload.id };
+	}
 }
 ```
 
-Then we need to import the `JwtModule` in the `AuthModule` and export the `JwtService` from it.
+Add `JwtStrategy`  **service** to the `providers` array in `src/auth/auth.module.ts`:
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { UsersModule } from 'src/users/users.module';
-import { LocalAuthService } from './local/local.auth.service';
-import { PassportModule } from '@nestjs/passport';
-import { LocalStrategyService } from './local/local.strategy.service';
-import { SessionSerializer } from './local/session.serializer';
 import { JwtModule } from '@nestjs/jwt';
+import { UsersModule } from 'src/users/users.module';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { jwtConfig } from 'src/config/jwt.config';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
-// @Module({
-//   imports: [UsersModule, PassportModule.register({ session: true })],
-//   providers: [LocalAuthService, LocalStrategyService, SessionSerializer],
-// })
 @Module({
-  imports: [
-    UsersModule,
-    PassportModule,
-    JwtModule.register({
-      secret: 'a secret',
-      signOptions: { expiresIn: '1d' },
-    }),
-  ],
-  providers: [LocalAuthService, LocalStrategyService],
-  exports: [LocalAuthService],
-})
-export class AuthModule {}
-
-```
-
-Accessing `auth/login` route with invalid `username` and `password` still returns unauthorized response:
-
-<div align="center">
-<img src="img/auth1.jpg" alt="auth1.jpg" width="600px">
-</div>
-
-Accessing `auth/login` route with valid `username` and `password` returns a JWT token:
-
-<div align="center">
-<img src="img/auth3.jpg" alt="auth3.jpg" width="700px">
-</div>
-
-##### Implementing Passport JWT to protect endpoints
-
-We can now address our final requirement: protecting endpoints by requiring a valid JWT be present on the request. Passport can help us here too. It provides the passport-jwt strategy for securing RESTful endpoints with JSON Web Tokens. Start by creating a file called `jwt.strategy.ts` in the `auth` folder, and add the following code:
-
-- [https://docs.nestjs.com/security/authentication#jwt-functionality](https://docs.nestjs.com/security/authentication#jwt-functionality)
-
-
-```typescript
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: 'secret',
-    });
-  }
-
-  async validate(payload: any) {
-    return { username: payload.username };
-  }
-}
-```
-
-Add the new `JwtStrategy` as a provider in the `AuthModule`:
-
-
-```typescript
-@Module({
-  imports: [
-    UsersModule,
-    PassportModule,
-    JwtModule.register({
-      secret: 'secret',
-      signOptions: { expiresIn: '1d' },
-    }),
-  ],
-  providers: [LocalAuthService, LocalStrategyService, JwtStrategy],
-  exports: [LocalAuthService],
+	imports: [UsersModule, JwtModule.registerAsync(jwtConfig)],
+	providers: [AuthService, JwtStrategy],
+	controllers: [AuthController]
 })
 export class AuthModule {}
 ```
 
-By importing the same secret used when we signed the JWT, we ensure that the verify phase performed by Passport, and the sign phase performed in our AuthService, use a common secret.
+Finally, we define the `JwtAuthGuard` guard that will be used to protect our endpoints. Create `src\auth\guard\jwt-auth.guard.ts` and add the following code:
 
-Finally, we define the `JwtAuthGuard` class which extends the built-in `AuthGuard`:
-
-`auth/jwt-auth.guard.ts`
 
 ```typescript
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: 'secret',
-    });
-  }
-
-  async validate(payload: any) {
-    console.log(payload);
-
-    return { username: payload.username };
-  }
-}
+export class JwtAuthGuard extends AuthGuard('jwt') {}
 ```
 
-Now finally protecting endpoints with `JwtAuthGuard`:
+Now protect the any endpoint by adding the `JwtAuthGuard` guard to the `@UseGuards` decorator:
 
-`app.controller.ts`
+
+For example, `src\users\users.controller.ts`
 
 ```typescript
-import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { LocalAuthService } from './auth/local/local.auth.service';
-import { LocalAuthGuard } from './auth/local/local.guard';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 
-@Controller()
-export class AppController {
-  constructor(private readonly authService: LocalAuthService) {}
-
-  @UseGuards(JwtAuthGuard)
-  @Get('/public')
-  async public() {
-    return { message: 'public' };
-  }
-
-  @UseGuards(LocalAuthGuard)
-  @Post('auth/login')
-  async login(@Request() req) {
-    return this.authService.login(req.user);
-  }
+@Controller('users')
+export class UsersController {
+	@UseGuards(JwtAuthGuard)
+	@Get('test')
+	protected() {
+		return {
+			message: 'This is a protected route'
+		};
+	}
 }
 ```
+
+<div align="center">
+<img src="img/protect-test.jpg" alt="protect-test.jpg" width="700px">
+</div>
+
+
+Provide the JWT in the `Authorization` header of the request:
+
+**before that; saving the token in  Postman environment variable when we login or signup**. Set the following code in `Test` section of Postman:
+
+```typescript
+var res = pm.response.json();
+console.log(res.access_token)
+pm.environment.set('access_token', res.access_token);
+
+var cookie =  pm.cookies.get('cookieToken');
+console.log(cookie)
+pm.environment.set('my_cookie',cookie);
+```
+
+<div align="center">
+<img src="img/protect-test-result.jpg" alt="protect-test-result" width="700px">
+</div>
