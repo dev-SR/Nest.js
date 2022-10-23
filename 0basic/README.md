@@ -9,18 +9,22 @@
     - [Query](#query)
       - [array query-string](#array-query-string)
   - [🚀Service Provider](#service-provider)
-  - [✅✅Validating `Request` Object with `Pipes` and `DTOs`](#validating-request-object-with-pipes-and-dtos)
-    - [Validating Params using Built-in `pipes`](#validating-params-using-built-in-pipes)
-    - [Validating Body using Class Validator and Dtos](#validating-body-using-class-validator-and-dtos)
+  - [API payloads validation and transformation in NestJS](#api-payloads-validation-and-transformation-in-nestjs)
+    - [✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`](#input-request-object-deserialization-and-validation-with-pipes-and-dtos)
+      - [Validating `Params` using Built-in `pipes`](#validating-params-using-built-in-pipes)
+      - [Validating Request `Body` using `Dtos`](#validating-request-body-using-dtos)
         - [⚠️Whitelisting Undesired Properties⚠️](#️whitelisting-undesired-properties️)
-  - [🔓🔓Transforming the `Response` With `Interceptors`](#transforming-the-response-with-interceptors)
-    - [🌟🌟Creating Response DTO](#creating-response-dto)
-      - [🔀Enable Class Transformation](#enable-class-transformation)
-    - [Transforming a Property With the `Expose` Decorator](#transforming-a-property-with-the-expose-decorator)
-    - [(Optional) Custom Interceptor](#optional-custom-interceptor)
-      - [Defining and Registering Custom interceptors](#defining-and-registering-custom-interceptors)
-      - [Custom ClassSerializerInterceptor](#custom-classserializerinterceptor)
+    - [🔓`Response` or Output Transformation With `Interceptors`](#response-or-output-transformation-with-interceptors)
+      - [🌟🌟Creating Response DTO](#creating-response-dto)
+        - [🔀Enable Class Transformation](#enable-class-transformation)
+      - [Transforming a Property With the `Expose` Decorator](#transforming-a-property-with-the-expose-decorator)
+    - [🥑 Mapped types: nest utility function for DTO design](#-mapped-types-nest-utility-function-for-dto-design)
+      - [PartialType](#partialtype)
+      - [OmitType](#omittype)
+      - [PickType](#picktype)
+      - [IntersectionType](#intersectiontype)
   - [`.env` and `Logger`](#env-and-logger)
+    - [Reusable Config file](#reusable-config-file)
 
 ## Basic Concepts in Nest.js
 
@@ -240,7 +244,23 @@ export class AppController {
 }
 ```
 
-## ✅✅Validating `Request` Object with `Pipes` and `DTOs`
+## API payloads validation and transformation in NestJS
+
+Implementation secure and error-proof APIs as much could be achieved by controlling API’s input and output payloads. This includes the following procedures:
+
+- **input deserialization, filtering, and validation**
+- **output filtering, transformation, and serialization**
+
+Input procedures ensure that data getting into our system is in the correct format, does not contain harmful extra data, and is valid.
+
+Output procedures ensure that the data we expose as output does not contain unwanted values (passwords for example) and is in the right format and structure.
+
+- [https://medium.com/fusionworks/api-payloads-validation-and-transformation-in-nestjs-5022ce4df225](https://medium.com/fusionworks/api-payloads-validation-and-transformation-in-nestjs-5022ce4df225)
+
+
+### ✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`
+
+#### Validating `Params` using Built-in `pipes`
 
 <div align="center">
 <img src="img/ls.jpg" alt="ls.jpg" width="800px">
@@ -267,7 +287,6 @@ Nest comes with nine pipes available out-of-the-box:
 - `DefaultValuePipe`
 - `ParseFilePipe`
 
-### Validating Params using Built-in `pipes`
 
 ```typescript
   @Get(':id')
@@ -324,11 +343,7 @@ http://localhost:3000/api/user
 }
 ```
 
-### Validating Body using Class Validator and Dtos
-
-```bash
-yarn add class-validator class-transformer
-```
+#### Validating Request `Body` using `Dtos`
 
 ```typescript
 import { IsNumber, IsPositive, IsString, IsNotEmpty } from 'class-validator';
@@ -481,7 +496,11 @@ app.useGlobalPipes(
 }
 ```
 
-## 🔓🔓Transforming the `Response` With `Interceptors`
+### 🔓`Response` or Output Transformation With `Interceptors`
+
+It is a process of preparing an object to be sent over the network to the end client. To prepare an object could be to exclude some of its sensitive or unnecessary properties or add some additional ones.
+
+For example, sensitive data like passwords should always be excluded from the response. Or, certain properties might require additional transformation, such as sending only a subset of properties of an entity. Performing these transformations manually can be tedious and error-prone, and can leave you uncertain that all cases have been covered.
 
 <div align="center">
 <img src="img/ls.jpg" alt="ls.jpg" width="800px">
@@ -491,7 +510,7 @@ app.useGlobalPipes(
 <img src="img/intercept.jpg" alt="intercept.jpg" width="500px">
 </div>
 
-### 🌟🌟Creating Response DTO
+#### 🌟🌟Creating Response DTO
 
 ```typescript
 import { Exclude } from 'class-transformer';
@@ -600,7 +619,7 @@ But still response has `update_at` property
 
 Because we have to enable few option in nest.js to get this works:
 
-#### 🔀Enable Class Transformation
+##### 🔀Enable Class Transformation
 
 Modification need in `src/main.ts`:
 
@@ -655,7 +674,7 @@ Now:
 }
 ```
 
-### Transforming a Property With the `Expose` Decorator
+#### Transforming a Property With the `Expose` Decorator
 
 ```typescript
 import { Exclude, Expose } from 'class-transformer';
@@ -708,75 +727,77 @@ export class AppController {
 }
 ```
 
-### (Optional) Custom Interceptor
+### 🥑 Mapped types: nest utility function for DTO design
 
-#### Defining and Registering Custom interceptors
+As you build out features like CRUD (Create/Read/Update/Delete) it’s often useful to construct variants on a base entity type. NestJS provides several utility functions that perform type transformations to make this task more convenient.
+
+When building input validation types (also called DTOs), it’s often useful to build create, and update variations on the same type. For example, the create variant may require all fields, while the update variant may make all fields optional.
+
+#### PartialType
+
+NestJS provides the PartialType() utility function to make this task easier and minimize boilerplate.
+
+The PartialType() function returns a type (class) with all the properties of the input type set to optional. For example, suppose we have a create type as follows:
 
 ```typescript
-// custom.interceptor.ts
-import { CallHandler, ExecutionContext, NestInterceptor } from '@nestjs/common';
-import { map } from 'rxjs';
-
-export class CustomInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, handler: CallHandler) {
-
-
-    console.log('INTERCEPTING REQUEST');
-    console.log( context);
-
-    // anything above is intercepting request object
-
-    return handler.handle().pipe(
-      map((data) => {
-        // anything here is intercepting response object
-        console.log('INTERCEPTING RESPONSE');
-        return data;
-      }),
-    );
-  }
+export class CreateUserModel {
+  email: string;
+  password: string;
+  posts: Post[];
+  address: string;
 }
 ```
 
-```typescript
-// app.module.ts
-import { CustomInterceptor } from './custom.intercepter';
+By default, all of the fields in this the above model are required. To create a type with the same fields, but with each one optional, use PartialType() passing the class reference (CreateUserModel) as an argument:
 
-@Module({
-  controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CustomInterceptor,
-    },
-  ],
-})
-export class AppModule {}
+```typescript
+export class UpdateUserModel extends PartialType(CreateUserModel) {}
 ```
 
-#### Custom ClassSerializerInterceptor
+#### OmitType
+
+The `OmitType()` function constructs a new type or class by picking all properties from an input type and removing certain attributes. Consider the below example.
 
 ```typescript
-import { CallHandler, ExecutionContext, NestInterceptor } from '@nestjs/common';
-import { map } from 'rxjs';
+export class UpdateUserModel extends OmitType(CreateUserModel, ['password'] as const) {}
+```
 
-export class CustomInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, handler: CallHandler) {
-    return handler.handle().pipe(
-      map((data) => {
-        const response = {
-          ...data,
-          createdAt: data.created_at,
-        };
+Basically, the new model will have all the properties from CreateUserModel except the password.
 
-        delete response.update_at;
-        delete response.created_at;
+#### PickType
 
-        return response;
-      }),
-    );
-  }
+The `PickType()` function constructs a new class or type by picking a particular set of properties from the input type:
+
+```typescript
+export class UpdateUserPasswordModel extends PickType(CreateUserModel, ['password'] as const) {}
+```
+
+
+Here we will have a new type that only contains the password attribute.
+
+#### IntersectionType
+
+The IntersectionType() function combines two types into one class or type.
+
+Let’s look at an example where we have two models:
+
+```typescript
+export class CreateUserModel {
+  email: string;
+  password: number;
+  posts: Post[];
+  address: string;
 }
+export class AdditionalUserModel {
+  age: number;
+}
+```
+
+
+Now we can create a new type as below.
+
+```typescript
+export class UpdateUserModel extends IntersectionType(CreateUserModel, AdditionalUserModel) {}
 ```
 
 ## `.env` and `Logger`
@@ -794,7 +815,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [ConfigModule.forRoot()],
+  imports: [ConfigModule.forRoot()],//ConfigModule.forRoot({ isGlobal: true }),
 })
 export class AppModule {}
 ```
@@ -845,5 +866,29 @@ class MyService {
   doSomething() {
     this.logger.log('Doing something...');
   }
+}
+```
+
+### Reusable Config file
+
+`config/app.config.ts`
+
+```typescript
+export default () => ({
+  jwtAccessTokenSecret: process.env.JWT_ACCESS_TOKEN_SECRET,
+  jwtAccessTokenExpirationTime: process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME,
+  jwRefreshTokenSecret: process.env.JWT_REFRESH_TOKEN_SECRET,
+  jwtRefreshTokenExpirationTime: process.env.JWT_REFRESH_TOKEN_EXPIRATION_TIME,
+  port: process.env.PORT,
+  environment: process.env.NODE_ENV,
+});
+```
+
+usage:
+
+```typescript
+async function bootstrap() {
+	const port = appConfig().port;
+  // ...
 }
 ```
