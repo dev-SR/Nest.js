@@ -12,8 +12,9 @@
   - [API payloads validation and transformation in NestJS](#api-payloads-validation-and-transformation-in-nestjs)
     - [✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`](#input-request-object-deserialization-and-validation-with-pipes-and-dtos)
       - [Validating `Params` using Built-in `pipes`](#validating-params-using-built-in-pipes)
-      - [Validating Request `Body` using `Dtos`](#validating-request-body-using-dtos)
+      - [Validating Request `Body` using `DTOs`](#validating-request-body-using-dtos)
         - [⚠️Whitelisting Undesired Properties⚠️](#️whitelisting-undesired-properties️)
+        - [✊ Validating `Array of Object` Example](#-validating-array-of-object-example)
     - [🔓`Response` or Output Transformation With `Interceptors`](#response-or-output-transformation-with-interceptors)
       - [🌟🌟Creating Response DTO](#creating-response-dto)
         - [🔀Enable Class Transformation](#enable-class-transformation)
@@ -257,7 +258,6 @@ Output procedures ensure that the data we expose as output does not contain unwa
 
 - [https://medium.com/fusionworks/api-payloads-validation-and-transformation-in-nestjs-5022ce4df225](https://medium.com/fusionworks/api-payloads-validation-and-transformation-in-nestjs-5022ce4df225)
 
-
 ### ✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`
 
 #### Validating `Params` using Built-in `pipes`
@@ -286,7 +286,6 @@ Nest comes with nine pipes available out-of-the-box:
 - `ParseEnumPipe`
 - `DefaultValuePipe`
 - `ParseFilePipe`
-
 
 ```typescript
   @Get(':id')
@@ -343,7 +342,7 @@ http://localhost:3000/api/user
 }
 ```
 
-#### Validating Request `Body` using `Dtos`
+#### Validating Request `Body` using `DTOs`
 
 ```typescript
 import { IsNumber, IsPositive, IsString, IsNotEmpty } from 'class-validator';
@@ -494,6 +493,95 @@ app.useGlobalPipes(
   "name":"jhon",
   "pass":"jhonx",
 }
+```
+
+##### ✊ Validating `Array of Object` Example
+
+- [https://stackoverflow.com/questions/58343262/class-validator-validate-array-of-objects](https://stackoverflow.com/questions/58343262/class-validator-validate-array-of-objects)
+
+
+```typescript
+import { Type } from 'class-transformer';
+import {
+ ArrayMinSize,
+ IsArray,
+ IsNotEmpty,
+ IsString,
+ MinLength,
+ ValidateNested
+} from 'class-validator';
+
+export class CreateCategoryAttributeDto {
+ @MinLength(3)
+ @IsString()
+ @IsNotEmpty()
+ attribute_name: string;
+ @MinLength(3)
+ @IsString()
+ @IsNotEmpty()
+ attribute_value: string;
+ @MinLength(3)
+ @IsString()
+ @IsNotEmpty()
+ categoryId: string;
+}
+
+export class CreateCategoryAttributeListDto {
+ @IsArray()
+ @ValidateNested({ each: true })
+ @ArrayMinSize(1)
+ @Type(() => CreateCategoryAttributeDto)
+ listOfAttribute: CreateCategoryAttributeDto[];
+}
+```
+
+Controller :
+
+```typescript
+  @Roles(Role.ADMIN)
+ @UseGuards(AuthGuard)
+ @Post('/attribute')
+ createAttribute(@Body() createCategoryAttributeDtoList: CreateCategoryAttributeListDto) {
+  return this.categoryService.createAttribute(createCategoryAttributeDtoList);
+ }
+```
+
+Service:
+
+```typescript
+@Injectable()
+export class CategoryService {
+ constructor(private readonly prismaService: PrismaService) {}
+
+ async createAttribute(createCategoryAttributeDtoList: CreateCategoryAttributeListDto) {
+  return await Promise.all(
+   createCategoryAttributeDtoList.listOfAttribute.map(
+    async (attribute: CreateCategoryAttributeDto) => {
+     const category = await this.prismaService.category.findUnique({
+      where: {
+       id: attribute.categoryId
+      }
+     });
+
+     if (!category) {
+      throw new ConflictException('Category not found');
+     }
+     // else create category without parentId
+     try {
+      return await this.prismaService.catAttribute.create({
+       data: { ...attribute }
+      });
+     } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+       if (e.code === 'P2002') {
+        throw new ConflictException('This Attribute already exits');
+       }
+      }
+     }
+    }
+   )
+  );
+ }
 ```
 
 ### 🔓`Response` or Output Transformation With `Interceptors`
@@ -772,7 +860,6 @@ The `PickType()` function constructs a new class or type by picking a particular
 export class UpdateUserPasswordModel extends PickType(CreateUserModel, ['password'] as const) {}
 ```
 
-
 Here we will have a new type that only contains the password attribute.
 
 #### IntersectionType
@@ -792,7 +879,6 @@ export class AdditionalUserModel {
   age: number;
 }
 ```
-
 
 Now we can create a new type as below.
 
@@ -888,7 +974,7 @@ usage:
 
 ```typescript
 async function bootstrap() {
-	const port = appConfig().port;
+ const port = appConfig().port;
   // ...
 }
 ```
