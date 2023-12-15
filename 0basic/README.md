@@ -2,13 +2,16 @@
 
 - [Nest.js](#nestjs)
   - [Basic Concepts in Nest.js](#basic-concepts-in-nestjs)
-    - [NestJS Modules](#nestjs-modules)
-  - [Controller](#controller)
+  - [🚀Next.js Core Dependency Injection (DI) Mechanism](#nextjs-core-dependency-injection-di-mechanism)
+    - [Injecting One Class into Another class in a single Module](#injecting-one-class-into-another-class-in-a-single-module)
+    - [Using 3rd Party Services or Services from Another Modules](#using-3rd-party-services-or-services-from-another-modules)
+      - [1. Importing 3rd Party Modules](#1-importing-3rd-party-modules)
+      - [2. Exporting and Importing Custom Modules](#2-exporting-and-importing-custom-modules)
+  - [Route Handling](#route-handling)
     - [Accessing Route parameters](#accessing-route-parameters)
     - [Request Body](#request-body)
     - [Query](#query)
       - [array query-string](#array-query-string)
-  - [🚀Service Provider](#service-provider)
   - [API payloads validation and transformation in NestJS](#api-payloads-validation-and-transformation-in-nestjs)
     - [✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`](#input-request-object-deserialization-and-validation-with-pipes-and-dtos)
       - [Validating `Params` using Built-in `pipes`](#validating-params-using-built-in-pipes)
@@ -29,31 +32,150 @@
 
 ## Basic Concepts in Nest.js
 
-### NestJS Modules
-
 Nest is built around a language feature called [decorators](https://medium.com/google-developers/exploring-es7-decorators-76ecb65fb841).
 
-Key component in Nest.js are:
+The key components in Nest.js include:
 
-- Each application has at least one module - the `root` module.
-- That is the starting point of the application.
-- Modules are an effective way to organize components by a closely related set of capabilities (e.g. per feature).
-- Modules are `singletons`, therefore a module can be imported by multiple other modules.
+1. **Controllers:**
+   - Responsible for handling incoming requests, interacting with services, and generating responses.
 
-The `@Module()` decorator takes a single object whose properties describe the module:
+2. **Providers (Services):**
+   - Encapsulate business logic, interact with databases or external APIs, and are injectable into controllers or other services.
 
-| Properties    | Working                                                                                                                                                   |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `providers`   | list of **service providers** to shared across the module via dependency injection                                                                        |
-| `controllers` | list of **route controller** to be instantiated within the module                                                                                         |
-| `exports`     | list of **service provider** to export to other module. You can use either the provider itself or just its token (provide value)                          |
-| `imports`     | list of  **modules** required by this module. Any exported service provider by those modules will now be available in our module via dependency injection |
+3. **Modules:**
+   - Organizational units used to group related components, controllers, services, etc., within an application.
+
+4. **Middleware:**
+   - Functions executed before or after request processing to perform tasks like logging, authentication, etc.
+
+5. **Interceptors:**
+   - Intercept incoming and outgoing data, allowing manipulation of request/response objects globally or for specific routes.
+
+6. **Filters:**
+   - Implement exception handling logic to manage exceptions that occur within the application.
+
+7. **Pipes:**
+   - Validate and transform incoming data before it reaches the route handler.
+
+8. **Guards:**
+   - Implement authorization logic to control access to certain routes or resources based on defined criteria.
+
+These components collectively enable the creation of scalable, modular, and maintainable applications in Nest.js.
+
+## 🚀Next.js Core Dependency Injection (DI) Mechanism
+
+### Injecting One Class into Another class in a single Module
+
+- NestJS `Controllers` depends on `Services` to handle business logic and data processing.
+
+```typescript
+class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+
+@Controller()
+export class AppController {
+  // DEPENDENCY; `AppController` depends on `AppService`
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  route(): string {
+    return this.appService.getHello();
+  }
+}
+
+@Module({
+  controllers: [AppController],
+})
+export class AppModule {}
+```
+
+`Services` are therefore **injected into the specified** `Controllers` using **Dependency Injection (DI)** mechanism provided by Nest.js, instead of being instantiated directly (e.g., `new AppService()`).
+
+**Dependency Injection (DI) mechanism in Two Steps:**
+
+- **Step 1: Mark Class as Injectable**
+  - First, `Service` must be marked as **injectable** using the `@Injectable()` decorator.
+
+  ```typescript
+  @Injectable() // Marking AppService as Injectable
+  export class  {
+    getHello(): string {
+      return 'Hello World!';
+    }
+  }
+  ```
+
+- **Step 2: Telling Where to Inject**
+  - Next, we need to tell Nest.js where to inject the `Service` by specifying it as a **provider** in a `Module`. This will enable that module to inject the `Service` into any `Controller` that depends on it.
+
+  ```typescript
+  @Module({
+    controllers: [AppController],
+    providers: [AppService], // This ensures that AppService is available for injection in AppController
+  })
+  export class AppModule {}
+  ```
 
 <div align="center">
   <img src="img/mo.jpg" alt="mo.jpg" width="1000px">
 </div>
 
-## Controller
+### Using 3rd Party Services or Services from Another Modules
+
+When working with Nest.js, integrating 3rd-party services and utilizing modules from other parts of the application involves a clear import/export strategy.
+
+Suppose we have an `AuthModule` dedicated to authentication and authorization tasks. This module depends on the `UserService` from `UserModule` to access user information. Additionally, it depends on external services like `JWTModule`, and `MailerModule`, such as handling JWT and email functionality.
+
+#### 1. Importing 3rd Party Modules
+
+For 3rd party module it's imported directly.
+
+```typescript
+@Module({
+  imports: [
+    JwtModule.register({ //Importing  3rd Party Module
+      global: true,
+      secret: jwtConstants.secret,
+      signOptions: { expiresIn: '60s' },
+    }),
+  ],
+  providers: [....],
+  controllers: [....],
+})
+export class AuthModule {}
+```
+
+#### 2. Exporting and Importing Custom Modules
+
+For custom module defined by ourself, let's say `UsersModule`, must be exported before it can be imported by `AuthModule`.
+
+First, we'll define a `UsersModule` to provide and export a `UsersService`. `UsersModule` is the host module for UsersService.
+
+```typescript
+@Module({
+  providers: [UsersService],
+  exports: [UsersService],
+})
+export class UsersModule {}
+```
+
+Next, in `AuthModule`, import `UsersModule`, making `UsersModule`'s exported providers available inside `AuthModule`:
+
+```typescript
+@Module({
+  imports: [UsersModule],
+  providers: [...],
+  exports: [...],
+})
+export class AuthModule {}
+```
+
+By exporting and importing modules in this manner, you establish a clear and modular architecture, making it easier to manage dependencies and promote code reusability.
+
+## Route Handling
 
 Controllers are responsible for handling incoming `requests` and returning `responses` to the client.
 
@@ -208,42 +330,6 @@ Routes with static paths won't work when you need to accept **dynamic data** as 
   }
 ```
 
-## 🚀Service Provider
-
-<div align="center">
-  <img src="img/mo.jpg" alt="mo.jpg" width="1000px">
-</div>
-
-```typescript
-// src/app.module.ts
-@Module({
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-
-
-// src/app.service.ts
-import { Injectable } from '@nestjs/common';
-@Injectable()
-export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
-}
-
-// src/app.controller.ts
-@Controller('api')
-export class AppController {
-  // Injecting Service
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  api2(): string {
-    return this.appService.getHello();
-  }
-}
-```
 
 ## API payloads validation and transformation in NestJS
 
