@@ -14,7 +14,7 @@
       - [array query-string](#array-query-string)
   - [API payloads validation and transformation in NestJS](#api-payloads-validation-and-transformation-in-nestjs)
     - [✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`](#input-request-object-deserialization-and-validation-with-pipes-and-dtos)
-      - [Validating `Params` using Built-in `pipes`](#validating-params-using-built-in-pipes)
+      - [Validating `Params` using Built-in `Pipes`](#validating-params-using-built-in-pipes)
       - [Validating Request `Body` using `DTOs`](#validating-request-body-using-dtos)
         - [⚠️Whitelisting Undesired Properties⚠️](#️whitelisting-undesired-properties️)
         - [✊ Validating `Array of Object` Example](#-validating-array-of-object-example)
@@ -120,7 +120,7 @@ export class AppModule {}
   ```
 
 <div align="center">
-  <img src="img/mo.jpg" alt="mo.jpg" width="1000px">
+  <img src="img/mo.jpg" alt="mo.jpg" width="800px">
 </div>
 
 ### Using 3rd Party Services or Services from Another Modules
@@ -174,6 +174,18 @@ export class AuthModule {}
 ```
 
 By exporting and importing modules in this manner, you establish a clear and modular architecture, making it easier to manage dependencies and promote code reusability.
+
+Complex example:
+
+<p align="center">
+<img src="mod.jpg" alt="mod.jpg" width="600px"/>
+</p>
+
+implementation:
+
+<p align="center">
+<img src="Nest-Module.jpg" alt="Nest-Module.jpg" width="600px"/>
+</p>
 
 ## Route Handling
 
@@ -346,7 +358,7 @@ Output procedures ensure that the data we expose as output does not contain unwa
 
 ### ✅Input `Request` Object deserialization and validation with `Pipes` and `DTOs`
 
-#### Validating `Params` using Built-in `pipes`
+#### Validating `Params` using Built-in `Pipes`
 
 <div align="center">
 <img src="img/ls.jpg" alt="ls.jpg" width="800px">
